@@ -235,7 +235,7 @@ async function run(){
         result: "0"
     });
     const matchedSelectors = await analyzeCssUsage(views, selectors);
-    progress.update({ timeLeft: `DONE`, url: ''})
+    progress.update({ timeLeft: '', url: ''})
     progress.stop();
 
     const sortedSelectors = getSelectorTypes(matchedSelectors, cssObjects)
