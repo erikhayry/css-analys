@@ -225,9 +225,9 @@ SUMMARY (${new Date().toLocaleDateString()})
 }
 
 async function run(){
-    const views = (await getViewUrls()).splice(0 ,100);
+    const views = (await getViewUrls());
     const cssObjects = await getCssObjects()
-    const selectors = cssObjects.map(toSelectors).splice(0 ,100)
+    const selectors = cssObjects.map(toSelectors)
     progress.start(views.length, 0, {
         timeLeft: "N/A",
         result: "0"
