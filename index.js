@@ -227,21 +227,21 @@ Script run for ${secondsToHms(TIMINGS.reduce(toTotalTime) / 1000)}
 }
 
 async function run(){
-    const views = (await getViewUrls()).splice(0 ,100);
+    const views = await getViewUrls();
     const cssObjects = await getCssObjects()
-    const selectors = cssObjects.map(toSelectors).splice(0 ,100)
+    const selectors = cssObjects.map(toSelectors)
     progress.start(views.length, 0, {
         timeLeft: "N/A",
         result: "0"
     });
     const matchedSelectors = await analyzeCssUsage(views, selectors);
-    progress.update({ timeLeft: `0s`, url: ''})
+    progress.update({ timeLeft: `DONE`, url: ''})
     progress.stop();
 
     const sortedSelectors = getSelectorTypes(matchedSelectors, cssObjects)
     const invalidSorted = INVALID.filter(outDuplicates).sort(asAlpabetical)
 
-    toJSON('results/views.json', views);
+    toJSON('results/views.json', views.sort(asAlpabetical));
     toJSON('results/used.json', sortedSelectors.matchedSelectors);
     toJSON('results/unused.json', sortedSelectors.unMatchedSelector);
     toJSON('results/invalid.json', invalidSorted);
