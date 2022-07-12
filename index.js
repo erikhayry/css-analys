@@ -28,11 +28,11 @@ function secondsToHms(totalTime) {
     const minutes = Math.floor(totalTime % HOUR_IN_SECONDS / 60);
     const seconds = Math.floor(totalTime % HOUR_IN_SECONDS % 60);
 
-    return `-${timeToString(hours, ":")}${timeToString(minutes, ":")}${timeToString(seconds)}`; 
+    return `${timeToString(hours, ":")}${timeToString(minutes, ":")}${timeToString(seconds)}`; 
 }
 
 const progress = new cliProgress.SingleBar({
-    format: `${colors.cyan('{bar}')} {percentage}% | {value}/{total} views | Time {timeLeft} | Selectors found: {result} | Url: {url}`,
+    format: `${colors.cyan('{bar}')} {percentage}% | {value}/{total} views | Time -{timeLeft} | Selectors found: {result} | Url: {url}`,
     barCompleteChar: '\u2588',
     barIncompleteChar: '\u2591',
     hideCursor: true
@@ -221,13 +221,15 @@ SUMMARY (${new Date().toLocaleDateString()})
 - Selectors used: ${matchedSelectors.length}
 - Selectors not used: ${unMatchedSelector.length}
 - Selectors invalid: ${invalidSorted.length}
+
+Script run for ${secondsToHms(TIMINGS.reduce(toTotalTime) / 1000)}
 `    
 }
 
 async function run(){
-    const views = (await getViewUrls());
+    const views = (await getViewUrls()).splice(0 ,100);
     const cssObjects = await getCssObjects()
-    const selectors = cssObjects.map(toSelectors)
+    const selectors = cssObjects.map(toSelectors).splice(0 ,100)
     progress.start(views.length, 0, {
         timeLeft: "N/A",
         result: "0"
@@ -245,7 +247,5 @@ async function run(){
     toJSON('results/invalid.json', invalidSorted);
     toTxt('results/summary.txt',  getSummary(selectors, views, sortedSelectors, invalidSorted));
 }
-
-
 
 run()
