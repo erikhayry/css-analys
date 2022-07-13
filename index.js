@@ -7,14 +7,22 @@ import fetch from 'node-fetch';
 import { Timer } from 'timer-node';
 
 const { JSDOM } = jsdom;
-const SITEMAP_URL = "https://www.handelsbanken.se/tron/public/ui/configurations/v1/sitemap/sitemap?rev=280490&lang=sv";
-const CSS_URL = "https://www.handelsbanken.se/sv/sepu//css/shb/app/style.css?rev=280490";
-const BASE_URL = "https://www.handelsbanken.se/sv/"
+const COUNTRY = "se"
+const SITEMAP_URL = `https://www.handelsbanken.${COUNTRY}/tron/public/ui/configurations/v1/sitemap/sitemap`;
+const CSS_URL = `https://www.handelsbanken.${COUNTRY}/sv/sepu//css/shb/app/style.css`;
+const BASE_URL = `https://www.handelsbanken.${COUNTRY}/sv/`
 
 const TIMINGS = [];
 const INVALID = []
+const IGNORED = []
 
 const timer = new Timer();
+const progress = new cliProgress.SingleBar({
+    format: `${colors.cyan('{bar}')} {percentage}% | {value}/{total} views | Time -{timeLeft} | Selectors found: {result} | Url: {url}`,
+    barCompleteChar: '\u2588',
+    barIncompleteChar: '\u2591',
+    hideCursor: true
+});
 
 function timeToString(time, delimiter = ''){
     const prefix = Number(time).toString().length === 1 ? "0" : ""
@@ -30,13 +38,6 @@ function secondsToHms(totalTime) {
 
     return `${timeToString(hours, ":")}${timeToString(minutes, ":")}${timeToString(seconds)}`; 
 }
-
-const progress = new cliProgress.SingleBar({
-    format: `${colors.cyan('{bar}')} {percentage}% | {value}/{total} views | Time -{timeLeft} | Selectors found: {result} | Url: {url}`,
-    barCompleteChar: '\u2588',
-    barIncompleteChar: '\u2591',
-    hideCursor: true
-});
 
 function toViewUrls(urls, { id, views = []}){
     if(id && !urls.includes(id)){
@@ -54,7 +55,7 @@ function outDuplicates(id, index, self){
     return self.indexOf(id) === index;
 }
 
-function toCssObjects(acc, [ selector, props ]){
+function toCssObjects(acc, [selector, props]){
     acc.push({
         selector, props: getCSSProps(props)
     })
@@ -65,7 +66,6 @@ function toCssObjects(acc, [ selector, props ]){
 function outTestViews(url){
     return !url.startsWith('test/')
 }
-
 
 function getCSSProps(item){
     return new Array(item.length)
@@ -79,8 +79,8 @@ function getCSSProps(item){
 
 async function getCssObjects(){
     const cssResponse = await fetch(CSS_URL)
-    const css = await cssResponse.text();
-    const parsedCss = await parseCSS(css);
+    const css = await cssResponse.text()
+    const parsedCss = await parseCSS(css.replaceAll('\n', ''));
 
     return parsedCss.reduce(toCssObjects, [])
 }
@@ -92,11 +92,37 @@ async function getViewUrls(){
     return sitemap.views.reduce(toViewUrls, []).filter(outNull).filter(outTestViews).filter(outDuplicates);
 }
 
+function removePseudo(selector = ''){
+    return selector
+        .replaceAll(':checked', '')
+        .replaceAll(':focus', '')
+        .replaceAll(':active', '')
+        .replaceAll(':visited', '')
+        .replaceAll(':hover', '')
+        .replaceAll(':after', '')
+        .replaceAll('::after', '')
+        .replaceAll(':before', '')
+        .replaceAll('::before', '')
+}
+
+function shouldBeIgnored(selector){
+    return selector.includes(':-moz-') || 
+        selector.includes(':-ms-') || 
+        selector.includes(':-webkit-')
+}
+
 function toSortedSelectors(acc, selector){
     const { document, selectors } = acc
 
-    try{            
-        if(document.querySelector(selector)){
+    if(shouldBeIgnored(selector)){
+        if(!IGNORED.includes(selector)){
+            IGNORED.push(selector)
+        }
+    }
+
+    try{          
+        const selectorWithoutPseudo = removePseudo(selector)
+        if(document.querySelector(selectorWithoutPseudo)){
             selectors.push(selector)
         }
     } catch(e){
@@ -204,12 +230,16 @@ function getSelectorTypes(matchedSelectors, cssObjects){
     }
 }
 
+function write(fileName, data){
+    fs.writeFileSync(`result/${COUNTRY}-${fileName}`, data);
+}
+
 function toJSON(fileName, data){
-    fs.writeFileSync(fileName, JSON.stringify(data, null, "\t"));
+    write(`${fileName}.json`, JSON.stringify(data, null, "\t"));
 }
 
 function toTxt(fileName, data){
-    fs.writeFileSync(fileName, data);
+    write(`${fileName}.txt`, data);
 }
 
 function getSummary(selectors, views, {matchedSelectors, unMatchedSelector}, invalidSorted){
@@ -221,9 +251,22 @@ SUMMARY (${new Date().toLocaleDateString()})
 - Selectors used: ${matchedSelectors.length}
 - Selectors not used: ${unMatchedSelector.length}
 - Selectors invalid: ${invalidSorted.length}
+- Selectors ignored: ${IGNORED.filter(outDuplicates).length}
 
 Script run for ${secondsToHms(TIMINGS.reduce(toTotalTime) / 1000)}
 `    
+}
+
+function builResult(matchedSelectors, cssObjects, views, selectors){
+    const sortedSelectors = getSelectorTypes(matchedSelectors, cssObjects)
+    const invalidSorted = INVALID.filter(outDuplicates).sort(asAlpabetical)
+
+    toJSON('views', views.sort(asAlpabetical));
+    toJSON('used', sortedSelectors.matchedSelectors);
+    toJSON('unused', sortedSelectors.unMatchedSelector);
+    toJSON('invalid', invalidSorted);
+    toJSON('ignored', IGNORED.filter(outDuplicates).sort(asAlpabetical));
+    toTxt('summary',  getSummary(selectors, views, sortedSelectors, invalidSorted));
 }
 
 async function run(){
@@ -238,14 +281,7 @@ async function run(){
     progress.update({ timeLeft: '', url: ''})
     progress.stop();
 
-    const sortedSelectors = getSelectorTypes(matchedSelectors, cssObjects)
-    const invalidSorted = INVALID.filter(outDuplicates).sort(asAlpabetical)
-
-    toJSON('results/views.json', views.sort(asAlpabetical));
-    toJSON('results/used.json', sortedSelectors.matchedSelectors);
-    toJSON('results/unused.json', sortedSelectors.unMatchedSelector);
-    toJSON('results/invalid.json', invalidSorted);
-    toTxt('results/summary.txt',  getSummary(selectors, views, sortedSelectors, invalidSorted));
+    builResult(matchedSelectors, cssObjects, views, selectors)
 }
 
 run()
