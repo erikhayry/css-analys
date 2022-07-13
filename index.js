@@ -16,6 +16,8 @@ function getLanguage(country){
             return 'sv'
         case 'no':
             return 'no'
+        case 'dk':
+            return 'da'
         case 'fi':
             return 'fi'
         default:
