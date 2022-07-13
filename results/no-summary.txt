@@ -1,0 +1,11 @@
+
+SUMMARY (2022-07-13)
+- Total number of selectors: 8500
+- Total number of views: 390
+
+- Selectors used: 909
+- Selectors not used: 7591
+- Selectors invalid: 172
+- Selectors ignored: 33
+
+Script run for 00:14:46

@@ -7,10 +7,25 @@ import fetch from 'node-fetch';
 import { Timer } from 'timer-node';
 
 const { JSDOM } = jsdom;
-const COUNTRY = "se"
-const SITEMAP_URL = `https://www.handelsbanken.${COUNTRY}/tron/public/ui/configurations/v1/sitemap/sitemap`;
-const CSS_URL = `https://www.handelsbanken.${COUNTRY}/sv/sepu//css/shb/app/style.css`;
-const BASE_URL = `https://www.handelsbanken.${COUNTRY}/sv/`
+const COUNTRY = process.argv[2] || "se"
+const LANGUAGE = getLanguage(COUNTRY)
+
+function getLanguage(country){
+    switch(country){
+        case 'se':
+            return 'sv'
+        case 'no':
+            return 'no'
+        case 'fi':
+            return 'fi'
+        default:
+            return 'en'
+    }
+}
+
+const SITEMAP_URL = `https://www.handelsbanken.${COUNTRY}/tron/public/ui/configurations/v1/sitemap/sitemap?lang=${LANGUAGE}`;
+const CSS_URL = `https://www.handelsbanken.${COUNTRY}/${LANGUAGE}/sepu//css/shb/app/style.css`;
+const BASE_URL = `https://www.handelsbanken.${COUNTRY}/${LANGUAGE}/`
 
 const TIMINGS = [];
 const INVALID = []
@@ -231,7 +246,7 @@ function getSelectorTypes(matchedSelectors, cssObjects){
 }
 
 function write(fileName, data){
-    fs.writeFileSync(`result/${COUNTRY}-${fileName}`, data);
+    fs.writeFileSync(`results/${COUNTRY}-${fileName}`, data);
 }
 
 function toJSON(fileName, data){
