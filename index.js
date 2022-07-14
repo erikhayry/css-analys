@@ -20,6 +20,8 @@ function getLanguage(country){
             return 'da'
         case 'fi':
             return 'fi'
+        case 'nl':
+            return 'nl'            
         default:
             return 'en'
     }
